@@ -2405,6 +2405,7 @@
       "serviceTypes": {
         "openai": "OpenAI",
         "openaiCompatible": "OpenAI Compatible",
+        "openaiResponses": "OpenAI Compatible (Responses API)",
         "anthropic": "Anthropic",
         "google": "Google Gemini",
         "mistral": "Mistral AI",

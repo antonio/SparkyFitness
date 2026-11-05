@@ -10,6 +10,10 @@ export const getServiceTypes = (t: (key: string) => string): ServiceType[] => [
     label: t('settings.aiService.serviceTypes.openaiCompatible'),
   },
   {
+    value: 'openai_responses',
+    label: t('settings.aiService.serviceTypes.openaiResponses'),
+  },
+  {
     value: 'anthropic',
     label: t('settings.aiService.serviceTypes.anthropic'),
   },
@@ -41,6 +45,7 @@ export const getServiceTypes = (t: (key: string) => string): ServiceType[] => [
 export const requiresApiKey = (serviceType: string | undefined): boolean =>
   serviceType !== 'ollama' &&
   serviceType !== 'openai_compatible' &&
+  serviceType !== 'openai_responses' &&
   serviceType !== 'custom';
 
 export { supportsVoiceTranscriptionServiceType } from '@workspace/shared';

@@ -889,6 +889,19 @@ export function buildChatProviderOptions(
   if (serviceType === 'openai_compatible' || serviceType === 'opencode_go') {
     return { openai: { systemMessageMode: 'system' } };
   }
+  if (serviceType === 'openai_responses') {
+    // store: false keeps the provider from retaining conversations; the SDK
+    // then resends history and asks for encrypted reasoning so it survives
+    // between turns. Reasoning effort follows the GPT-6 gate the settings form
+    // uses to show the selector; other models keep their own default.
+    return {
+      openai: {
+        systemMessageMode: 'system',
+        ...(isGpt6Model(modelName) && { reasoningEffort }),
+        store: false,
+      },
+    };
+  }
   if (serviceType === 'anthropic') {
     // Top-level automatic caching: Anthropic moves this breakpoint to the last
     // block of every request, so each agent step reads the previous step's
@@ -1550,6 +1563,7 @@ function createChatModelInstance(
   if (
     aiService.service_type === 'ollama' ||
     aiService.service_type === 'openai_compatible' ||
+    aiService.service_type === 'openai_responses' ||
     aiService.service_type === 'opencode_go' ||
     aiService.service_type === 'custom' ||
     aiService.service_type === 'mistral' ||
@@ -1593,7 +1607,13 @@ function createChatModelInstance(
     if (wantsOpenRouterCacheControl(baseURL, modelName)) {
       providerOptions.fetch = createOpenRouterCacheFetch(providerOptions.fetch);
     }
-    return createOpenAI(providerOptions).chat(modelName);
+    const provider = createOpenAI(providerOptions);
+    // OpenAI reasoning models (GPT-5.4 and later) accept function tools with
+    // reasoning only on the Responses API, so this type serves gateways that
+    // expose /responses (OpenAI, Azure OpenAI, OpenRouter).
+    return aiService.service_type === 'openai_responses'
+      ? provider.responses(modelName)
+      : provider.chat(modelName);
   }
   throw new Error(`Unsupported service type: ${aiService.service_type}`);
 }
@@ -2561,6 +2581,7 @@ const OPENCODE_GO_MODELS_URL = 'https://opencode.ai/inference/go/v1/models';
 const NO_PRESET_SERVICE_TYPES = new Set([
   'ollama',
   'openai_compatible',
+  'openai_responses',
   'opencode_go',
   'custom',
 ]);

@@ -110,7 +110,8 @@ export const ServiceForm = ({
   const requiresCustomUrl =
     formData.service_type === 'custom' ||
     formData.service_type === 'ollama' ||
-    formData.service_type === 'openai_compatible';
+    formData.service_type === 'openai_compatible' ||
+    formData.service_type === 'openai_responses';
 
   return (
     <form
@@ -210,7 +211,8 @@ export const ServiceForm = ({
         )}
       </div>
 
-      {formData.service_type === 'openai' &&
+      {(formData.service_type === 'openai' ||
+        formData.service_type === 'openai_responses') &&
         isGpt6Model(selectedModel ?? '') && (
           <div>
             <Label htmlFor="reasoning_effort">

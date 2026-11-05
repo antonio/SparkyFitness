@@ -100,30 +100,47 @@ describe('transcribeVoiceAudio', () => {
     expect(init).toHaveProperty('dispatcher');
   });
 
-  it.each(['openai', 'mistral', 'openai_compatible', 'custom'])(
-    'sends multipart transcription to %s',
-    async (serviceType) => {
-      mockGetService.mockResolvedValue({
-        ...configuration,
-        service_type: serviceType,
-        model_name: 'voice-model',
-        custom_url: 'https://voice.example/v1',
-      });
-      fetchMock.mockResolvedValue(Response.json({ text: ' test transcript ' }));
-      await expect(transcribeVoiceAudio(params)).resolves.toEqual({
-        text: 'test transcript',
-        model: 'voice-model',
-      });
-      const [url, init] = fetchMock.mock.calls[0]!;
-      expect(String(url)).toMatch(/\/audio\/transcriptions$/);
-      expect(init).toMatchObject({
-        redirect: 'manual',
-        headers: { Authorization: 'Bearer test-key' },
-      });
-      expect(init?.body).toBeInstanceOf(FormData);
-      expect((init?.body as FormData).get('model')).toBe('voice-model');
-    }
-  );
+  it.each([
+    'openai',
+    'mistral',
+    'openai_compatible',
+    'openai_responses',
+    'custom',
+  ])('sends multipart transcription to %s', async (serviceType) => {
+    mockGetService.mockResolvedValue({
+      ...configuration,
+      service_type: serviceType,
+      model_name: 'voice-model',
+      custom_url: 'https://voice.example/v1',
+    });
+    fetchMock.mockResolvedValue(Response.json({ text: ' test transcript ' }));
+    await expect(transcribeVoiceAudio(params)).resolves.toEqual({
+      text: 'test transcript',
+      model: 'voice-model',
+    });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(String(url)).toMatch(/\/audio\/transcriptions$/);
+    expect(init).toMatchObject({
+      redirect: 'manual',
+      headers: { Authorization: 'Bearer test-key' },
+    });
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect((init?.body as FormData).get('model')).toBe('voice-model');
+  });
+
+  it('drops a pasted /responses path from a Responses API service URL', async () => {
+    mockGetService.mockResolvedValue({
+      ...configuration,
+      service_type: 'openai_responses',
+      model_name: 'voice-model',
+      custom_url: 'https://voice.example/v1/responses',
+    });
+    fetchMock.mockResolvedValue(Response.json({ text: 'speech' }));
+    await transcribeVoiceAudio(params);
+    expect(String(fetchMock.mock.calls[0]![0])).toBe(
+      'https://voice.example/v1/audio/transcriptions'
+    );
+  });
 
   it('allows keyless self-hosted transcription without an Authorization header', async () => {
     mockGetService.mockResolvedValue({

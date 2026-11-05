@@ -100,7 +100,8 @@ export async function transcribeVoiceAudio(params: {
   }
   const keyOptional =
     service.service_type === 'custom' ||
-    service.service_type === 'openai_compatible';
+    service.service_type === 'openai_compatible' ||
+    service.service_type === 'openai_responses';
   if (!service.api_key && !keyOptional) {
     throw new VoiceTranscriptionError(
       'API key missing for selected AI service.'

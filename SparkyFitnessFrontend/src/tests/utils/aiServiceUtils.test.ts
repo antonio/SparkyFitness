@@ -75,6 +75,13 @@ describe('getServiceTypes', () => {
       label: 'settings.aiService.serviceTypes.opencodeGo',
     });
   });
+
+  it('includes the OpenAI-compatible Responses API service', () => {
+    expect(getServiceTypes((key) => key)).toContainEqual({
+      value: 'openai_responses',
+      label: 'settings.aiService.serviceTypes.openaiResponses',
+    });
+  });
 });
 
 describe('getModelOptions', () => {
@@ -83,7 +90,7 @@ describe('getModelOptions', () => {
   // on most compatible servers). Returning [] makes the form fall back to the
   // custom-model text input. Previously 'openai_compatible' shared OpenAI's list
   // and auto-selected 'gpt-4o-mini', which failed against non-OpenAI endpoints.
-  it.each(['openai_compatible', 'custom'])(
+  it.each(['openai_compatible', 'openai_responses', 'custom'])(
     'returns no preset models for %s',
     (serviceType) => {
       expect(getModelOptions(serviceType)).toEqual([]);
@@ -138,7 +145,7 @@ describe('requiresApiKey', () => {
   // savable without an API key. The add/edit forms previously exempted only
   // 'ollama', blocking openai_compatible/custom even though the server's
   // dispatcher and test-connection path tolerate a blank key.
-  it.each(['ollama', 'openai_compatible', 'custom'])(
+  it.each(['ollama', 'openai_compatible', 'openai_responses', 'custom'])(
     'does not require a key for keyless local type %s',
     (serviceType) => {
       expect(requiresApiKey(serviceType)).toBe(false);

@@ -86,6 +86,18 @@ These usually run without an API key — leave the **API Key** field blank. Use 
 
 Local/private AI URLs are resolved from the backend server's network, not from the browser. To prevent regular users from turning the server into a private-network proxy, private AI URLs are allowed for current admins, global admin-created AI settings, or deployments that explicitly set [`ALLOW_PRIVATE_NETWORK_AI=true`](/install/environment-variables).
 
+### "Function tools with reasoning_effort are not supported" (HTTP 400)
+
+GPT-5.4 and later reasoning models, including GPT-6, accept function tools on the Chat Completions API (`/chat/completions`) only when reasoning is off. Sparky's chat always sends tools, so an **OpenAI Compatible** service pointed at one of these models fails with this error, for example on Azure OpenAI.
+
+**Fix:** Choose the **OpenAI Compatible (Responses API)** service type. It uses the endpoint's `/responses` API for chat, food photos, label scans and unit conversion, so tools and reasoning work together. Your endpoint must implement the Responses API, as OpenAI, Azure OpenAI and OpenRouter do.
+
+- **Custom URL:** the base URL ending in `/v1`. SparkyFitness adds `/responses` itself and removes it if you paste the full endpoint. For Azure OpenAI, use `https://<resource>.openai.azure.com/openai/v1` or `https://<resource>.services.ai.azure.com/openai/v1`.
+- **Model:** the model name your endpoint expects. For Azure OpenAI, this is your deployment name.
+- **Reasoning effort:** shown for GPT-6 model names. Other models use their provider's default.
+
+SparkyFitness sends `store: false`, so the provider does not keep the conversation; each turn sends the history again. Voice transcription uses the same endpoint's `/audio/transcriptions`.
+
 ### Perplexity AI Setup and Troubleshooting
 
 Perplexity has retired the legacy OpenAI-compatible Chat Completions API (`/v1/chat/completions` and `/v1/sonar`) in favor of their new Agent API (`/v1/responses`). Attempting to connect to `api.perplexity.ai` under the generic **OpenAI Compatible** type returns HTTP 403 `chat_completions_not_available`.

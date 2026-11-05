@@ -79,6 +79,7 @@ vi.mock('@ai-sdk/openai', () => ({
   createOpenAI: vi.fn(() =>
     Object.assign(() => mockModelHolder.current, {
       chat: () => mockModelHolder.current,
+      responses: () => mockModelHolder.current,
     })
   ),
 }));
@@ -895,7 +896,7 @@ describe('chatService', () => {
     // openai_compatible/custom must work on the non-stream chat path. Previously
     // an ollama-only guard rejected them with "API key missing" even though the
     // stream path, test-connection, and dispatcher all tolerate a blank key.
-    it.each(['openai_compatible', 'custom'])(
+    it.each(['openai_compatible', 'openai_responses', 'custom'])(
       'does NOT require an api_key for keyless %s services',
       async (serviceType) => {
         vi.mocked(
@@ -927,7 +928,7 @@ describe('chatService', () => {
     // Guard: a URL-requiring service (ollama/openai_compatible/custom) with no
     // custom_url resolves to an undefined baseURL, which would make the AI SDK
     // silently fall back to OpenAI's default host. Reject it instead.
-    it.each(['ollama', 'openai_compatible', 'custom'])(
+    it.each(['ollama', 'openai_compatible', 'openai_responses', 'custom'])(
       'rejects a %s service that is missing its custom_url',
       async (serviceType) => {
         vi.mocked(

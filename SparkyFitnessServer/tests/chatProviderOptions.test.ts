@@ -1,6 +1,6 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, streamText } from 'ai';
+import { generateText, jsonSchema, streamText, tool } from 'ai';
 import { vi, describe, expect, it } from 'vitest';
 import {
   buildChatProviderOptions,
@@ -146,6 +146,36 @@ describe('buildChatProviderOptions', () => {
     }
   );
 
+  it('sends reasoning effort and store: false to GPT-6 models over the Responses API', () => {
+    expect(
+      buildChatProviderOptions(
+        'openai_responses',
+        'user-1',
+        'gpt-6.1-terra',
+        'high'
+      )
+    ).toEqual({
+      openai: {
+        systemMessageMode: 'system',
+        reasoningEffort: 'high',
+        store: false,
+      },
+    });
+  });
+
+  it('omits reasoning effort for other models over the Responses API', () => {
+    expect(
+      buildChatProviderOptions(
+        'openai_responses',
+        'user-1',
+        'my-deployment',
+        'high'
+      )
+    ).toEqual({
+      openai: { systemMessageMode: 'system', store: false },
+    });
+  });
+
   it('turns on Anthropic automatic caching', () => {
     expect(
       buildChatProviderOptions('anthropic', 'user-1', 'claude-sonnet-5')
@@ -215,6 +245,137 @@ describe('OpenAI-compatible system role requests', () => {
 
     expect(requests).toHaveLength(1);
     expectSystemMessage(requests[0]);
+  });
+});
+
+describe('OpenAI-compatible Responses API chat', () => {
+  const policy = { allowPrivateNetwork: true, reason: 'admin' } as const;
+  const service = {
+    service_type: 'openai_responses',
+    custom_url: 'https://example.services.ai.azure.com/openai/v1/',
+    api_key: 'test-key',
+  };
+
+  it('sends tools and reasoning to the endpoint /responses path', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal(
+      'fetch',
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push({ url: String(input), init });
+        return Response.json({
+          id: 'resp_test',
+          object: 'response',
+          created_at: 0,
+          model: 'gpt-6.1-terra',
+          status: 'completed',
+          output: [
+            {
+              type: 'message',
+              id: 'msg_test',
+              role: 'assistant',
+              status: 'completed',
+              content: [{ type: 'output_text', text: 'ok', annotations: [] }],
+            },
+          ],
+          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+        });
+      }
+    );
+    try {
+      await generateText({
+        model: createChatModelInstance(service, 'gpt-6.1-terra', policy),
+        system: 'Sparky system prompt',
+        prompt: 'What did I eat today?',
+        tools: {
+          get_diary: tool({
+            description: 'Reads the food diary.',
+            inputSchema: jsonSchema({ type: 'object', properties: {} }),
+          }),
+        },
+        providerOptions: buildChatProviderOptions(
+          'openai_responses',
+          'user-1',
+          'gpt-6.1-terra',
+          'high'
+        ),
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(
+      'https://example.services.ai.azure.com/openai/v1/responses'
+    );
+    expect(new Headers(calls[0].init?.headers).get('authorization')).toBe(
+      'Bearer test-key'
+    );
+    const body = JSON.parse(String(calls[0].init?.body));
+    expect(body.model).toBe('gpt-6.1-terra');
+    expect(body.reasoning).toMatchObject({ effort: 'high' });
+    expect(body.store).toBe(false);
+    expect(body.include).toContain('reasoning.encrypted_content');
+    expect(body.tools).toEqual([
+      expect.objectContaining({ type: 'function', name: 'get_diary' }),
+    ]);
+    expect(body.input[0]).toEqual({
+      role: 'system',
+      content: 'Sparky system prompt',
+    });
+  });
+
+  it('accepts a custom URL pasted with its /responses path', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return Response.json({
+        id: 'resp_test',
+        object: 'response',
+        created_at: 0,
+        model: 'gpt-6.1-terra',
+        status: 'completed',
+        output: [
+          {
+            type: 'message',
+            id: 'msg_test',
+            role: 'assistant',
+            status: 'completed',
+            content: [{ type: 'output_text', text: 'ok', annotations: [] }],
+          },
+        ],
+        usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+      });
+    });
+    try {
+      await generateText({
+        model: createChatModelInstance(
+          {
+            ...service,
+            custom_url:
+              'https://example.services.ai.azure.com/openai/v1/responses/',
+          },
+          'gpt-6.1-terra',
+          policy
+        ),
+        prompt: 'Hello',
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(urls).toEqual([
+      'https://example.services.ai.azure.com/openai/v1/responses',
+    ]);
+  });
+
+  it('requires a custom URL', () => {
+    expect(() =>
+      createChatModelInstance(
+        { ...service, custom_url: ' ' },
+        'gpt-6.1-terra',
+        policy
+      )
+    ).toThrow('Custom URL is required for service type: openai_responses');
   });
 });
 

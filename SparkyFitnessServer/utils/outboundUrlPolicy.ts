@@ -59,6 +59,7 @@ export function requiresUserSuppliedAiUrl(serviceType: string): boolean {
   return (
     serviceType === 'ollama' ||
     serviceType === 'openai_compatible' ||
+    serviceType === 'openai_responses' ||
     serviceType === 'custom'
   );
 }

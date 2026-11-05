@@ -26,6 +26,7 @@ const VOICE_SERVICE_TYPES = new Set([
   'google',
   'openai',
   'openai_compatible',
+  'openai_responses',
   'custom',
   'mistral',
 ]);

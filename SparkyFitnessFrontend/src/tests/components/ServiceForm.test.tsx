@@ -142,6 +142,50 @@ describe('ServiceForm — model validation', () => {
   });
 });
 
+describe('ServiceForm — OpenAI-compatible Responses API', () => {
+  it('asks for the endpoint URL', () => {
+    renderForm(
+      makeFormData({
+        service_type: 'openai_responses',
+        showCustomModelInput: true,
+        custom_model_name: 'my-deployment',
+      })
+    );
+
+    expect(
+      screen.getByLabelText('settings.aiService.userSettings.customUrl')
+    ).toBeTruthy();
+  });
+
+  it('offers reasoning effort for a GPT-6 model', () => {
+    renderForm(
+      makeFormData({
+        service_type: 'openai_responses',
+        showCustomModelInput: true,
+        custom_model_name: 'gpt-6.1-terra',
+      })
+    );
+
+    expect(
+      screen.getByText('settings.aiService.reasoningEffort.label')
+    ).toBeTruthy();
+  });
+
+  it('hides reasoning effort for other models', () => {
+    renderForm(
+      makeFormData({
+        service_type: 'openai_responses',
+        showCustomModelInput: true,
+        custom_model_name: 'my-deployment',
+      })
+    );
+
+    expect(
+      screen.queryByText('settings.aiService.reasoningEffort.label')
+    ).toBeNull();
+  });
+});
+
 describe('ServiceForm — Ollama tool profile default', () => {
   function renderWithChange(formData: AiServiceSettingsFormInput) {
     const onFormDataChange = jest.fn();

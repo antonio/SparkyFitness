@@ -182,6 +182,7 @@ function providerFamily(serviceType: string): ProviderFamily | null {
     case 'openai':
     case 'opencode_go':
     case 'openai_compatible':
+    case 'openai_responses':
     case 'mistral':
     case 'groq':
     case 'openrouter':
@@ -203,6 +204,7 @@ function requiresCustomUrl(serviceType: string): boolean {
   return (
     serviceType === 'ollama' ||
     serviceType === 'openai_compatible' ||
+    serviceType === 'openai_responses' ||
     serviceType === 'custom'
   );
 }
@@ -215,6 +217,7 @@ export function requiresApiKey(serviceType: string): boolean {
   return (
     serviceType !== 'ollama' &&
     serviceType !== 'openai_compatible' &&
+    serviceType !== 'openai_responses' &&
     serviceType !== 'custom'
   );
 }
@@ -627,9 +630,14 @@ function buildGoogleRequest(
 }
 
 function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
-  // GPT-6 tool use and structured output use the Responses protocol. Keep
-  // user-hosted compatible endpoints on their configured Chat protocol.
-  if (ctx.provider.service_type === 'openai' && isGpt6Model(ctx.model)) {
+  // GPT-6 on OpenAI and every 'openai_responses' service use the Responses
+  // protocol. Other compatible endpoints stay on their Chat protocol.
+  const isGpt6 = isGpt6Model(ctx.model);
+  const isResponsesService = ctx.provider.service_type === 'openai_responses';
+  if (
+    (ctx.provider.service_type === 'openai' && isGpt6) ||
+    isResponsesService
+  ) {
     const format = ctx.jsonSchema
       ? {
           type: 'json_schema',
@@ -639,15 +647,20 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
         }
       : undefined;
     return {
-      url: 'https://api.openai.com/v1/responses',
+      url: `${getOpenAiCompatibleBaseUrl(ctx.provider.service_type, ctx.provider.custom_url)}/responses`,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${ctx.provider.api_key}`,
+        // Same keyless sentinel as the Chat path for local gateways.
+        Authorization: `Bearer ${ctx.provider.api_key || 'no-key'}`,
       },
       body: {
         model: ctx.model,
         store: false,
-        reasoning: { effort: ctx.provider.reasoning_effort ?? 'medium' },
+        // GPT-6 rejects temperature; other models may honor it, and a
+        // rejection is learned by the temperature fallback in dispatch.
+        ...(isGpt6
+          ? { reasoning: { effort: ctx.provider.reasoning_effort ?? 'medium' } }
+          : ctx.temperature !== undefined && { temperature: ctx.temperature }),
         input: [
           {
             role: 'user',

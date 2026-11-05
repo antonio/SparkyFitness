@@ -450,21 +450,24 @@ describe('chatService.testAiServiceConnection', () => {
     expect(provider.custom_url).toBe('https://elsewhere.example/');
   });
 
-  it('post-fallback model check: throws 400 and never dispatches for a no-preset type with a blank model', async () => {
-    // Public URL so the SSRF gate (#4) passes and we reach the model check.
-    await expect(
-      chatService.testAiServiceConnection(
-        {
-          service_type: 'openai_compatible',
-          custom_url: 'https://llm.example.com/v1',
-          api_key: 'k',
-        },
-        USER_ID,
-        false
-      )
-    ).rejects.toMatchObject({ statusCode: 400 });
-    expect(mockDispatch).not.toHaveBeenCalled();
-  });
+  it.each(['openai_compatible', 'openai_responses'])(
+    'post-fallback model check: throws 400 and never dispatches for no-preset type %s with a blank model',
+    async (service_type) => {
+      // Public URL so the SSRF gate (#4) passes and we reach the model check.
+      await expect(
+        chatService.testAiServiceConnection(
+          {
+            service_type,
+            custom_url: 'https://llm.example.com/v1',
+            api_key: 'k',
+          },
+          USER_ID,
+          false
+        )
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(mockDispatch).not.toHaveBeenCalled();
+    }
+  );
 
   // Gate #4 (SSRF): the reported vulnerability — a non-admin pointing custom_url
   // at an internal address to force a server-side request there.

@@ -202,7 +202,7 @@ Each of these is also settable in the Admin UI, where it is stored in the databa
 
 - **`SPARKY_FITNESS_PUBLIC_API_DOCS`**: Serve the Swagger API docs at `/api/api-docs` without requiring a login. Also in **Admin > Authentication Settings**.
 - **`DEV_TOOLS_ENABLED`**: Expose the admin-only database inspection tools to the AI chatbot and MCP endpoint. Also in **Admin > Authentication Settings**.
-- **`ALLOW_PRIVATE_NETWORK_AI`**: Let non-admin users point custom AI service URLs (`custom`, `ollama`, `openai_compatible`) at private/LAN addresses. Also in **Admin > Global AI Settings**. ⚠️ Enabling this lets any registered user make the server send requests to your internal network (SSRF); only enable on a trusted single-tenant deployment.
+- **`ALLOW_PRIVATE_NETWORK_AI`**: Let non-admin users point custom AI service URLs (`custom`, `ollama`, `openai_compatible`, `openai_responses`) at private/LAN addresses. Also in **Admin > Global AI Settings**. ⚠️ Enabling this lets any registered user make the server send requests to your internal network (SSRF); only enable on a trusted single-tenant deployment.
 - **`ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS`**: The same, for self-hosted recipe providers (Mealie, Tandoor, Norish). Also in **Admin > Global Provider Settings**. ⚠️ Same SSRF warning applies.
 
 ::: info Provider response capture is not configured by environment

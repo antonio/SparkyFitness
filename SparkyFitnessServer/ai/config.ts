@@ -92,6 +92,13 @@ function getOpenAiCompatibleBaseUrl(
       return 'https://api.meta.ai/v1';
     case 'opencode_go':
       return 'https://opencode.ai/inference/go/openai/v1';
+    case 'openai_responses':
+      // Callers append `/responses` (or `/audio/transcriptions`), so a URL
+      // pasted with that path would otherwise be doubled into a 400.
+      return customUrl
+        ?.trim()
+        .replace(/\/+$/, '')
+        .replace(/\/responses$/i, '');
     default:
       return customUrl ?? undefined;
   }

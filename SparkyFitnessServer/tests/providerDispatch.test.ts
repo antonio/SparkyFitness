@@ -294,7 +294,7 @@ describe('dispatchAiRequest — preconditions', () => {
   // dispatch path the same way they already do on the chat path. Previously a
   // blank key hard-failed here with api_key_missing while chat tolerated it,
   // so chat worked but photo/label-scan/unit-conversion silently failed.
-  it.each(['openai_compatible', 'custom'])(
+  it.each(['openai_compatible', 'openai_responses', 'custom'])(
     'does NOT require an api_key for %s and sends a no-key bearer',
     async (serviceType) => {
       const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
@@ -314,7 +314,7 @@ describe('dispatchAiRequest — preconditions', () => {
     }
   );
 
-  it.each(['ollama', 'openai_compatible', 'custom'])(
+  it.each(['ollama', 'openai_compatible', 'openai_responses', 'custom'])(
     'returns custom_url_missing for %s with a blank custom_url',
     async (serviceType) => {
       const m = vi.fn();
@@ -862,6 +862,74 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect((body.response_format as { type: string }).type).toBe('json_schema');
     const messages = body.messages as Array<{ content: string }>;
     expect(messages[0].content).toBe('Do the thing.');
+  });
+
+  it('openai_responses posts to custom_url/responses with GPT-6 reasoning', async () => {
+    const m = mockFetch({
+      status: 'completed',
+      output: [
+        {
+          type: 'message',
+          content: [{ type: 'output_text', text: JSON.stringify(SAMPLE) }],
+        },
+      ],
+    });
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_responses',
+          custom_url: 'https://example.services.ai.azure.com/openai/v1/',
+          model_name: 'gpt-6.1-terra',
+          reasoning_effort: 'high',
+        }),
+        temperature: 0,
+      })
+    );
+    const { url, headers, body } = captured(m);
+    expect(url).toBe(
+      'https://example.services.ai.azure.com/openai/v1/responses'
+    );
+    expect(headers.Authorization).toBe('Bearer sk-test');
+    expect(body.model).toBe('gpt-6.1-terra');
+    expect(body.store).toBe(false);
+    expect(body.reasoning).toEqual({ effort: 'high' });
+    expect(body.temperature).toBeUndefined();
+    expect(body.text).toMatchObject({
+      format: { type: 'json_schema', name: SCHEMA_NAME, strict: true },
+    });
+    expect(result).toMatchObject({ ok: true, json: SAMPLE });
+  });
+
+  it('openai_responses accepts a custom_url pasted with its /responses path', async () => {
+    const m = mockFetch({ output_text: JSON.stringify(SAMPLE) });
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_responses',
+          custom_url: 'https://gateway.example/v1/responses',
+          model_name: 'my-deployment',
+        }),
+      })
+    );
+    expect(captured(m).url).toBe('https://gateway.example/v1/responses');
+  });
+
+  it('openai_responses leaves reasoning to other models and forwards temperature', async () => {
+    const m = mockFetch({ output_text: JSON.stringify(SAMPLE) });
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_responses',
+          custom_url: 'https://gateway.example/v1',
+          model_name: 'my-deployment',
+        }),
+        temperature: 0,
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://gateway.example/v1/responses');
+    expect(body.reasoning).toBeUndefined();
+    expect(body.temperature).toBe(0);
   });
 
   it('DeepSeek OpenAI-compatible endpoints use json_object with schema in prompt', async () => {
